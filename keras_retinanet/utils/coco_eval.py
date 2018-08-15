@@ -16,15 +16,21 @@ limitations under the License.
 
 from __future__ import print_function
 
-from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
+import keras
 import numpy as np
 import json
-import os
 
 
 def evaluate_coco(generator, model, threshold=0.05):
+    """ Use the pycocotools to evaluate a COCO model on a dataset.
+
+    Args
+        generator : The generator for generating the evaluation data.
+        model     : The model to evaluate.
+        threshold : The score threshold to use.
+    """
     # start collecting results
     results = []
     image_ids = []
@@ -32,6 +38,9 @@ def evaluate_coco(generator, model, threshold=0.05):
         image = generator.load_image(index)
         image = generator.preprocess_image(image)
         image, scale = generator.resize_image(image)
+
+        if keras.backend.image_data_format() == 'channels_first':
+            image = image.transpose((2, 0, 1))
 
         # run network
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
@@ -64,7 +73,7 @@ def evaluate_coco(generator, model, threshold=0.05):
         image_ids.append(generator.image_ids[index])
 
         # print progress
-        print('{}/{}'.format(index, generator.size()), end='\r')
+        print('{}/{}'.format(index + 1, generator.size()), end='\r')
 
     if not len(results):
         return

@@ -10,8 +10,8 @@ by Tsung-Yi Lin, Priya Goyal, Ross Girshick, Kaiming He and Piotr Dollár.
    Note that due to inconsistencies with how `tensorflow` should be installed,
    this package does not define a dependency on `tensorflow` as it will try to install that (which at least on Arch Linux results in an incorrect installation).
    Please make sure `tensorflow` is installed as per your systems requirements.
-   Also, make sure Keras 2.1.3 or higher is installed.
-3) Optionally, install `pycocotools` if you want to train / test on the MS COCO dataset by running `pip install --user git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI`.
+3) Alternatively, you can run the code directly from the cloned  repository, however you need to run `python setup.py build_ext --inplace` to compile Cython code first.
+4) Optionally, install `pycocotools` if you want to train / test on the MS COCO dataset by running `pip install --user git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI`.
 
 ## Testing
 An example of testing the network can be seen in [this Notebook](https://github.com/delftrobotics/keras-retinanet/blob/master/examples/ResNet50RetinaNet.ipynb).
@@ -20,18 +20,18 @@ In general, inference of the network works as follows:
 boxes, scores, labels = model.predict_on_batch(inputs)
 ```
 
-Where `boxes` are shaped `(None, None, 4)` (for `(x1, y1, x2, y2)`), scores is shaped `(None, None)` (classification score) and labels is shaped `(None, None)` (label corresponding to the score).
+Where `boxes` are shaped `(None, None, 4)` (for `(x1, y1, x2, y2)`), scores is shaped `(None, None)` (classification score) and labels is shaped `(None, None)` (label corresponding to the score). In all three outputs, the first dimension represents the shape and the second dimension indexes the list of detections.
 
 Loading models can be done in the following manner:
 ```python
 from keras_retinanet.models import load_model
-model = load_model('/path/to/model.h5', backbone='resnet50')
+model = load_model('/path/to/model.h5', backbone_name='resnet50')
 ```
 
 Execution time on NVIDIA Pascal Titan X is roughly 75msec for an image of shape `1000x800x3`.
 
 ### Converting a training model to inference model
-The training procedure of `keras-retinanet` works with training models. These are stripped down versions compared to the inference model and only contains the layers necessary for training (regression and classification values). If you wish to do inference on a model (perform object detection on an image), you need to convert the trained model to an inference model. This is done as follows:
+The training procedure of `keras-retinanet` works with *training models*. These are stripped down versions compared to the *inference model* and only contains the layers necessary for training (regression and classification values). If you wish to do inference on a model (perform object detection on an image), you need to convert the trained model to an inference model. This is done as follows:
 
 ```shell
 # Running directly from the repository:
@@ -41,7 +41,7 @@ keras_retinanet/bin/convert_model.py /path/to/training/model.h5 /path/to/save/in
 retinanet-convert-model /path/to/training/model.h5 /path/to/save/inference/model.h5
 ```
 
-Most scripts (like `retinanet-evaluate` and `retinanet-evaluate-coco`) also support converting on the fly, using the `--convert-model` argument.
+Most scripts (like `retinanet-evaluate`) also support converting on the fly, using the `--convert-model` argument.
 
 
 ## Training
@@ -54,8 +54,8 @@ If you installed `keras-retinanet` correctly, the train script will be installed
 However, if you make local modifications to the `keras-retinanet` repository, you should run the script directly from the repository.
 That will ensure that your local changes will be used by the train script.
 
-The default backbone is 'resnet50'. You can change this using the '--backbone=xxx' argument in the running script.
-xxx can be one of the backbones in resnet models (resnet50, resnet101, resnet152), mobilenet models (mobilenet128_1.0, mobilenet128_0.75, mobilenet160_1.0, etc), densenet models or vgg models. The different options are defined by each model in their corresponding python scripts (resnet.py, mobilenet.py, etc).
+The default backbone is `resnet50`. You can change this using the `--backbone=xxx` argument in the running script.
+`xxx` can be one of the backbones in resnet models (`resnet50`, `resnet101`, `resnet152`), mobilenet models (`mobilenet128_1.0`, `mobilenet128_0.75`, `mobilenet160_1.0`, etc), densenet models or vgg models. The different options are defined by each model in their corresponding python scripts (`resnet.py`, `mobilenet.py`, etc).
 
 Trained models can't be used directly for inference. To convert a trained model to an inference model, check [here](https://github.com/fizyr/keras-retinanet#converting-a-training-model-to-inference-model).
 
@@ -78,24 +78,25 @@ keras_retinanet/bin/train.py coco /path/to/MS/COCO
 retinanet-train coco /path/to/MS/COCO
 ```
 
-The pretrained MS COCO model can be downloaded [here](https://github.com/fizyr/keras-retinanet/releases/download/0.2/resnet50_coco_best_v2.0.3.h5). Results using the `cocoapi` are shown below (note: according to the paper, this configuration should achieve a mAP of 0.357).
+The pretrained MS COCO model can be downloaded [here](https://github.com/fizyr/keras-retinanet/releases). Results using the `cocoapi` are shown below (note: according to the paper, this configuration should achieve a mAP of 0.357).
 
 ```
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.345
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.533
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.368
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.189
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.380
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.465
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.301
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.482
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.529
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.364
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.565
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.666
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.350
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.537
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.374
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.191
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.383
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.472
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.306
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.491
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.533
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.345
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.577
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.681
 ```
 
-For training on [OID](https://github.com/openimages/dataset), run:
+For training on Open Images Dataset [OID](https://storage.googleapis.com/openimages/web/index.html)
+or taking place to the [OID challenges](https://storage.googleapis.com/openimages/web/challenge.html), run:
 ```shell
 # Running directly from the repository:
 keras_retinanet/bin/train.py oid /path/to/OID
@@ -106,6 +107,12 @@ retinanet-train oid /path/to/OID
 # You can also specify a list of labels if you want to train on a subset
 # by adding the argument 'labels_filter':
 keras_retinanet/bin/train.py oid /path/to/OID --labels_filter=Helmet,Tree
+
+# You can also specify a parent label if you want to train on a branch
+# from the semantic hierarchical tree (i.e a parent and all children)
+(https://storage.googleapis.com/openimages/challenge_2018/bbox_labels_500_hierarchy_visualizer/circle.html)
+# by adding the argument 'parent-label':
+keras_retinanet/bin/train.py oid /path/to/OID --parent-label=Boat
 ```
 
 
@@ -218,7 +225,11 @@ Example output images using `keras-retinanet` are shown below.
 </p>
 
 ### Projects using keras-retinanet
-
+* [NATO Innovation Challenge](https://medium.com/data-from-the-trenches/object-detection-with-deep-learning-on-aerial-imagery-2465078db8a9). The winning team of the NATO Innovation Challenge used keras-retinanet to detect cars in aerial images ([COWC dataset](https://gdo152.llnl.gov/cowc/)).
+* [Microsoft Research for Horovod on Azure](https://blogs.technet.microsoft.com/machinelearning/2018/06/20/how-to-do-distributed-deep-learning-for-object-detection-using-horovod-on-azure/). A research project by Microsoft, using keras-retinanet to distribute training over multiple GPUs using Horovod on Azure.
+* [Anno-Mage](https://virajmavani.github.io/saiat/). A tool that helps you annotate images, using input from the keras-retinanet COCO model as suggestions.
+* [Telenav.AI](https://github.com/Telenav/Telenav.AI/tree/master/retinanet). For the detection of traffic signs using keras-retinanet.
+* [Towards Deep Placental Histology Phenotyping](https://github.com/Nellaker-group/TowardsDeepPhenotyping). This research project uses keras-retinanet for analysing the placenta at a cellular level.
 * [4k video example](https://www.youtube.com/watch?v=KYueHEMGRos). This demo shows the use of keras-retinanet on a 4k input video.
 * [boring-detector](https://github.com/lexfridman/boring-detector). I suppose not all projects need to solve life's biggest questions. This project detects the "The Boring Company" hats in videos.
 * [comet.ml](https://towardsdatascience.com/how-i-monitor-and-track-my-machine-learning-experiments-from-anywhere-described-in-13-tweets-ec3d0870af99). Using keras-retinanet in combination with [comet.ml](https://comet.ml) to interactively inspect and compare experiments.
@@ -226,7 +237,7 @@ Example output images using `keras-retinanet` are shown below.
 If you have a project based on `keras-retinanet` and would like to have it published here, shoot me a message on Slack.
 
 ### Notes
-* This repository requires Keras 2.1.3 or higher.
+* This repository requires Keras 2.2.0 or higher.
 * This repository is [tested](https://github.com/fizyr/keras-retinanet/blob/master/.travis.yml) using OpenCV 3.4.
 * This repository is [tested](https://github.com/fizyr/keras-retinanet/blob/master/.travis.yml) using Python 2.7 and 3.6.
 
@@ -234,3 +245,12 @@ Contributions to this project are welcome.
 
 ### Discussions
 Feel free to join the `#keras-retinanet` [Keras Slack](https://keras-slack-autojoin.herokuapp.com/) channel for discussions and questions.
+
+## FAQ
+* **I get the warning `UserWarning: No training configuration found in save file: the model was not compiled. Compile it manually.`, should I be worried?** This warning can safely be ignored during inference.
+* **I get the error `ValueError: not enough values to unpack (expected 3, got 2)` during inference, what to do?**. This is because you are using a train model to do inference. See https://github.com/fizyr/keras-retinanet#converting-a-training-model-to-inference-model for more information.
+* **How do I do transfer learning?** The easiest solution is to use the `--weights` argument when training. Keras will load models, even if the number of classes don't match (it will simply skip loading of weights when there is a mismatch). Run for example `retinanet-train --weights snapshots/some_coco_model.h5 pascal /path/to/pascal` to transfer weights from a COCO model to a PascalVOC training session. If your dataset is small, you can also use the `--freeze-backbone` argument to freeze the backbone layers.
+* **How do I change the number / shape of the anchors?** There is no straightforward way (yet) to do this. Look at https://github.com/fizyr/keras-retinanet/issues/421 for a discussion on what is currently the method to do this.
+* **I get a loss of `0`, what is going on?** This mostly happens when none of the anchors "fit" on your objects, because they are most likely too small or elongated. You can verify this using the [debug](https://github.com/fizyr/keras-retinanet#debugging) tool.
+* **I have an older model, can I use it after an update of keras-retinanet?** This depends on what has changed. If it is a change that doesn't affect the weights then you can "update" models by creating a new retinanet model, loading your old weights using `model.load_weights(weights_path, by_name=True)` and saving this model. If the change has been too significant, you should retrain your model (you can try to load in the weights from your old model when starting training, this might be a better starting position than ImageNet).
+* **I get the error `ModuleNotFoundError: No module named 'keras_retinanet.utils.compute_overlap'`, how do I fix this?** Most likely you are running the code from the cloned repository. This is fine, but you need to compile some extensions for this to work (`python setup.py build_ext --inplace`).
