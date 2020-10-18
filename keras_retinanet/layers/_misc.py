@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import keras
+import tensorflow
+from tensorflow import keras
 from .. import backend
 from ..utils import anchors as utils_anchors
 
@@ -31,8 +32,8 @@ class Anchors(keras.layers.Layer):
         Args
             size: The base size of the anchors to generate.
             stride: The stride of the anchors to generate.
-            ratios: The ratios of the anchors to generate (defaults to [0.5, 1, 2]).
-            scales: The scales of the anchors to generate (defaults to [2^0, 2^(1/3), 2^(2/3)]).
+            ratios: The ratios of the anchors to generate (defaults to AnchorParameters.default.ratios).
+            scales: The scales of the anchors to generate (defaults to AnchorParameters.default.scales).
         """
         self.size   = size
         self.stride = stride
@@ -40,20 +41,20 @@ class Anchors(keras.layers.Layer):
         self.scales = scales
 
         if ratios is None:
-            self.ratios  = np.array([0.5, 1, 2], keras.backend.floatx()),
+            self.ratios  = utils_anchors.AnchorParameters.default.ratios
         elif isinstance(ratios, list):
             self.ratios  = np.array(ratios)
         if scales is None:
-            self.scales  = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)], keras.backend.floatx()),
+            self.scales  = utils_anchors.AnchorParameters.default.scales
         elif isinstance(scales, list):
             self.scales  = np.array(scales)
 
-        self.num_anchors = len(ratios) * len(scales)
-        self.anchors     = keras.backend.variable(utils_anchors.generate_anchors(
-            base_size=size,
-            ratios=ratios,
-            scales=scales,
-        ))
+        self.num_anchors = len(self.ratios) * len(self.scales)
+        self.anchors = utils_anchors.generate_anchors(
+            base_size=self.size,
+            ratios=self.ratios,
+            scales=self.scales,
+        ).astype(np.float32)
 
         super(Anchors, self).__init__(*args, **kwargs)
 
@@ -101,9 +102,9 @@ class UpsampleLike(keras.layers.Layer):
         source, target = inputs
         target_shape = keras.backend.shape(target)
         if keras.backend.image_data_format() == 'channels_first':
-            source = backend.transpose(source, (0, 2, 3, 1))
+            source = tensorflow.transpose(source, (0, 2, 3, 1))
             output = backend.resize_images(source, (target_shape[2], target_shape[3]), method='nearest')
-            output = backend.transpose(output, (0, 3, 1, 2))
+            output = tensorflow.transpose(output, (0, 3, 1, 2))
             return output
         else:
             return backend.resize_images(source, (target_shape[1], target_shape[2]), method='nearest')
@@ -165,20 +166,19 @@ class RegressBoxes(keras.layers.Layer):
 class ClipBoxes(keras.layers.Layer):
     """ Keras layer to clip box values to lie inside a given shape.
     """
-
     def call(self, inputs, **kwargs):
         image, boxes = inputs
         shape = keras.backend.cast(keras.backend.shape(image), keras.backend.floatx())
         if keras.backend.image_data_format() == 'channels_first':
-            height = shape[2]
-            width  = shape[3]
+            _, _, height, width = tensorflow.unstack(shape, axis=0)
         else:
-            height = shape[1]
-            width  = shape[2]
-        x1 = backend.clip_by_value(boxes[:, :, 0], 0, width)
-        y1 = backend.clip_by_value(boxes[:, :, 1], 0, height)
-        x2 = backend.clip_by_value(boxes[:, :, 2], 0, width)
-        y2 = backend.clip_by_value(boxes[:, :, 3], 0, height)
+            _, height, width, _ = tensorflow.unstack(shape, axis=0)
+
+        x1, y1, x2, y2 = tensorflow.unstack(boxes, axis=-1)
+        x1 = tensorflow.clip_by_value(x1, 0, width  - 1)
+        y1 = tensorflow.clip_by_value(y1, 0, height - 1)
+        x2 = tensorflow.clip_by_value(x2, 0, width  - 1)
+        y2 = tensorflow.clip_by_value(y2, 0, height - 1)
 
         return keras.backend.stack([x1, y1, x2, y2], axis=2)
 

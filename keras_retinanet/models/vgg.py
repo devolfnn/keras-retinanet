@@ -15,8 +15,7 @@ limitations under the License.
 """
 
 
-import keras
-from keras.utils import get_file
+from tensorflow import keras
 
 from . import retinanet
 from . import Backbone
@@ -37,15 +36,15 @@ class VGGBackbone(Backbone):
         Weights can be downloaded at https://github.com/fizyr/keras-models/releases .
         """
         if self.backbone == 'vgg16':
-            resource = keras.applications.vgg16.WEIGHTS_PATH_NO_TOP
+            resource = keras.applications.vgg16.vgg16.WEIGHTS_PATH_NO_TOP
             checksum = '6d6bbae143d832006294945121d1f1fc'
         elif self.backbone == 'vgg19':
-            resource = keras.applications.vgg19.WEIGHTS_PATH_NO_TOP
+            resource = keras.applications.vgg19.vgg19.WEIGHTS_PATH_NO_TOP
             checksum = '253f8cb515780f3b799900260a226db6'
         else:
             raise ValueError("Backbone '{}' not recognized.".format(self.backbone))
 
-        return get_file(
+        return keras.utils.get_file(
             '{}_weights_tf_dim_ordering_tf_kernels_notop.h5'.format(self.backbone),
             resource,
             cache_subdir='models',
@@ -84,9 +83,9 @@ def vgg_retinanet(num_classes, backbone='vgg16', inputs=None, modifier=None, **k
 
     # create the vgg backbone
     if backbone == 'vgg16':
-        vgg = keras.applications.VGG16(input_tensor=inputs, include_top=False)
+        vgg = keras.applications.VGG16(input_tensor=inputs, include_top=False, weights=None)
     elif backbone == 'vgg19':
-        vgg = keras.applications.VGG19(input_tensor=inputs, include_top=False)
+        vgg = keras.applications.VGG19(input_tensor=inputs, include_top=False, weights=None)
     else:
         raise ValueError("Backbone '{}' not recognized.".format(backbone))
 
@@ -96,4 +95,12 @@ def vgg_retinanet(num_classes, backbone='vgg16', inputs=None, modifier=None, **k
     # create the full model
     layer_names = ["block3_pool", "block4_pool", "block5_pool"]
     layer_outputs = [vgg.get_layer(name).output for name in layer_names]
-    return retinanet.retinanet(inputs=inputs, num_classes=num_classes, backbone_layers=layer_outputs, **kwargs)
+
+    # C2 not provided
+    backbone_layers = {
+        'C3': layer_outputs[0],
+        'C4': layer_outputs[1],
+        'C5': layer_outputs[2]
+    }
+
+    return retinanet.retinanet(inputs=inputs, num_classes=num_classes, backbone_layers=backbone_layers, **kwargs)
